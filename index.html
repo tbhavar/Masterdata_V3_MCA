@@ -8,13 +8,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Local Configuration -->
+    <script src="config.js" onerror="console.log('Local config.js not found, falling back to localStorage');"></script>
 </head>
 <body>
+    <button class="settings-btn" id="open-settings" title="GitHub Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+
     <div class="container">
         <header>
             <div class="logo">TBHAVAR</div>
             <h1>Company Master Data Portal</h1>
             <p class="subtitle">Automated MCA V3 Reporting & Archiving</p>
+            <div id="connection-status" class="connection-badge disconnected">Checking Connection...</div>
         </header>
 
         <main>
@@ -39,7 +46,6 @@
                 </div>
 
                 <button id="submit-btn" class="primary-btn">Generate Master Data Report</button>
-
                 <div id="status-message" class="status-message hide"></div>
             </div>
         </main>
@@ -52,42 +58,97 @@
         </footer>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <h2>GitHub Authentication</h2>
+            <p style="color: #666; font-size: 0.9rem; margin-bottom: 1.5rem;">Enter your GitHub Personal Access Token (PAT) with 'repo' scope to trigger automation.</p>
+            <div class="form-group">
+                <label for="pat-input">GitHub PAT</label>
+                <input type="password" id="pat-input" placeholder="ghp_xxxxxxxxxxxx">
+                <p class="note" style="margin-top: 5px;">Token will be stored locally in your browser.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="secondary-btn" id="close-settings">Cancel</button>
+                <button class="primary-btn" id="save-settings" style="flex: 2; padding: 0.8rem;">Save Token</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const modal = document.getElementById('settings-modal');
+        const openBtn = document.getElementById('open-settings');
+        const closeBtn = document.getElementById('close-settings');
+        const saveBtn = document.getElementById('save-settings');
+        const patInput = document.getElementById('pat-input');
+        const statusBadge = document.getElementById('connection-status');
+
+        // Initialize Token Status
+        updateConnectionStatus();
+
+        function getToken() {
+            // Priority: Local config.js > localStorage
+            if (window.APP_CONFIG && window.APP_CONFIG.GITHUB_PAT) {
+                return window.APP_CONFIG.GITHUB_PAT;
+            }
+            return localStorage.getItem('GH_PAT');
+        }
+
+        function updateConnectionStatus() {
+            const token = getToken();
+            if (token) {
+                statusBadge.textContent = "GitHub Connected";
+                statusBadge.className = "connection-badge connected";
+                patInput.value = token;
+            } else {
+                statusBadge.textContent = "GitHub Disconnected (Action Required)";
+                statusBadge.className = "connection-badge disconnected";
+            }
+        }
+
+        openBtn.onclick = () => modal.classList.add('active');
+        closeBtn.onclick = () => modal.classList.remove('active');
+        
+        saveBtn.onclick = () => {
+            const val = patInput.value.trim();
+            if (val) {
+                localStorage.setItem('GH_PAT', val);
+                updateConnectionStatus();
+                modal.classList.remove('active');
+                showStatus('Settings saved successfully.', 'success');
+            } else {
+                showStatus('Please enter a valid token.', 'error');
+            }
+        };
+
+        window.onclick = (e) => {
+            if (e.target == modal) modal.classList.remove('active');
+        };
+
         document.getElementById('submit-btn').addEventListener('click', async () => {
             const cins = document.getElementById('cin-list').value.trim();
             const email = document.getElementById('user-email').value.trim();
             const forceRefresh = document.getElementById('force-refresh').checked;
-            const statusBox = document.getElementById('status-message');
+            const token = getToken();
 
             if (!cins || !email) {
                 showStatus('Please provide both CINs and an Email ID.', 'error');
                 return;
             }
 
-            showStatus('Triggering automation workflow...', 'info');
+            if (!token) {
+                showStatus('GitHub PAT is required to trigger automation.', 'error');
+                modal.classList.add('active');
+                return;
+            }
 
-            // Note: This requires a GitHub PAT with 'repo' scope.
-            // Ideally, this should be handled via a secure proxy or GitHub's own API from a safe environment.
-            // For demonstration, we recommend the user to configure their repository dispatch.
+            showStatus('Triggering automation workflow...', 'info');
             
             try {
-                // The user will need to provide their GitHub Username and Token
-                // We'll prompt them for the token or explain how to set it up.
-                const token = localStorage.getItem('GH_PAT');
-                if (!token) {
-                    const userInputToken = prompt("Please enter your GitHub Personal Access Token (PAT) with 'repo' scope to trigger the automation:");
-                    if (userInputToken) {
-                        localStorage.setItem('GH_PAT', userInputToken);
-                    } else {
-                        showStatus('GitHub PAT is required to trigger automation.', 'error');
-                        return;
-                    }
-                }
-
                 const response = await fetch('https://api.github.com/repos/tbhavar/Masterdata_V3_MCA/dispatches', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `token ${localStorage.getItem('GH_PAT')}`,
+                        'Authorization': `token ${token}`,
                         'Accept': 'application/vnd.github.v3+json',
                     },
                     body: JSON.stringify({
@@ -104,8 +165,12 @@
                     showStatus('Success! The Master Data automation has started. Check your email in 2-3 minutes.', 'success');
                 } else {
                     const err = await response.json();
-                    showStatus('Failed to trigger automation: ' + err.message, 'error');
-                    localStorage.removeItem('GH_PAT'); // Clear invalid token
+                    if (response.status === 401) {
+                        showStatus('Invalid GitHub Token. Please check your settings.', 'error');
+                        modal.classList.add('active');
+                    } else {
+                        showStatus('Failed to trigger automation: ' + err.message, 'error');
+                    }
                 }
             } catch (error) {
                 showStatus('Error: ' + error.message, 'error');
@@ -117,7 +182,16 @@
             statusBox.textContent = text;
             statusBox.className = `status-message ${type}`;
             statusBox.classList.remove('hide');
+            
+            // Auto hide success/info messages after 10 seconds
+            if (type !== 'error') {
+                setTimeout(() => {
+                    if (statusBox.textContent === text) statusBox.classList.add('hide');
+                }, 10000);
+            }
         }
     </script>
+</body>
+</html>
 </body>
 </html>

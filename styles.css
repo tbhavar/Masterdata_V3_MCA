@@ -207,10 +207,126 @@ textarea:focus, input:focus {
     text-align: center;
 }
 
-.status-message.info { background: #e3f2fd; color: #1565c0; }
-.status-message.success { background: #e8f5e9; color: #2e7d32; }
-.status-message.error { background: #ffebee; color: #c62828; }
+.status-message.info { background: #e3f2fd; color: #1565c0; border: 1px solid rgba(21, 101, 192, 0.1); }
+.status-message.success { background: #e8f5e9; color: #2e7d32; border: 1px solid rgba(46, 125, 50, 0.1); }
+.status-message.error { background: #ffebee; color: #c62828; border: 1px solid rgba(198, 40, 40, 0.1); }
 .hide { display: none; }
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(8px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.4s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    transform: translateY(20px);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.modal-overlay.active .modal {
+    transform: translateY(0);
+}
+
+.modal h2 {
+    font-family: 'Outfit', sans-serif;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+}
+
+.modal-footer {
+    display: flex;
+    gap: 12px;
+    margin-top: 2rem;
+}
+
+.secondary-btn {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    padding: 0.8rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.secondary-btn:hover {
+    background: #f0f0f0;
+}
+
+/* Settings Icon */
+.settings-btn {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: white;
+    border: 1px solid var(--border-color);
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: var(--transition);
+}
+
+.settings-btn:hover {
+    transform: rotate(45deg);
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.settings-btn svg { width: 20px; height: 20px; }
+
+/* Connection Badge */
+.connection-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 10px;
+}
+
+.connection-badge.connected { background: #e8f5e9; color: #2e7d32; }
+.connection-badge.disconnected { background: #fff3e0; color: #e65100; }
+
+.connection-badge::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 8px;
+    background: currentColor;
+}
 
 footer {
     text-align: center;
