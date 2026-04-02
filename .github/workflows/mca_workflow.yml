@@ -37,6 +37,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add master_data_archive/
-          git commit -m "Auto-archive: New Master Data Report [actions skip]" || echo "No changes to commit"
+          git add master_data_archive/ error_logs/
+          git commit -m "Auto-archive: New Master Data Report or Error Log [actions skip]" || echo "No changes to commit"
           git push

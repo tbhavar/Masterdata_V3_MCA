@@ -8,6 +8,8 @@ from email.mime.multipart import MIMEMultipart
 import playwright.sync_api as p
 import ddddocr
 import requests
+from email.mime.base import MIMEBase
+from email import encoders
 
 # Constants
 ARCHIVE_DIR = "master_data_archive"
@@ -120,36 +122,142 @@ def generate_html_report(company_name, data):
     
     return filename, filepath
 
-def send_email(to_email, company_name, report_url):
+def send_email(to_email, company_name, report_url, message_type="success", error_message="", attachment_path=None):
     sender_email = os.environ.get("GMAIL_USER")
     sender_password = os.environ.get("GMAIL_APP_PASSWORD")
 
-    with open("email_template.html", "r") as f:
+    template_file = "email_template.html" if message_type == "success" else "error_template.html"
+    with open(template_file, "r") as f:
         template = f.read()
     
-    body = template.replace("{{COMPANY_NAME}}", company_name) \
-                   .replace("{{REPORT_URL}}", report_url) \
-                   .replace("{{DISCLAIMER}}", DISCLAIMER)
+    if message_type == "success":
+        body = template.replace("{{COMPANY_NAME}}", company_name) \
+                       .replace("{{REPORT_URL}}", report_url) \
+                       .replace("{{DISCLAIMER}}", DISCLAIMER)
+        subject = f"Master Data Report: {company_name}"
+    else:
+        body = template.replace("{{COMPANY_NAME}}", company_name) \
+                       .replace("{{ERROR_MESSAGE}}", error_message) \
+                       .replace("{{DISCLAIMER}}", DISCLAIMER)
+        subject = f"ALERT: Master Data Automation Issue - {company_name}"
 
     msg = MIMEMultipart()
     msg['From'] = f"TBHAVAR Master Data Portal <{sender_email}>"
     msg['To'] = to_email
-    msg['Subject'] = f"Master Data Report: {company_name}"
+    msg['Subject'] = subject
     msg.attach(MIMEText(body, 'html'))
+
+    if attachment_path and os.path.exists(attachment_path):
+        with open(attachment_path, "rb") as attachment:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(attachment.read())
+            encoders.encode_base64(part)
+            part.add_header(
+                "Content-Disposition",
+                f"attachment; filename= {os.path.basename(attachment_path)}",
+            )
+            msg.attach(part)
 
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(sender_email, sender_password)
         server.send_message(msg)
         server.quit()
-        print(f"Email sent to {to_email}")
+        print(f"Email sent to {to_email} (Type: {message_type})")
     except Exception as e:
         print(f"Failed to send email: {e}")
 
+def scrape_mca_master_data(cin, username, password):
+    ERROR_DIR = "error_logs"
+    if not os.path.exists(ERROR_DIR):
+        os.makedirs(ERROR_DIR)
+
+    with p.sync_playwright() as playwright:
+        # Use a real user agent to avoid some bot detection
+        browser = playwright.chromium.launch(headless=True)
+        context = browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            viewport={'width': 1280, 'height': 800}
+        )
+        page = context.new_page()
+
+        try:
+            # Login
+            print(f"Logging into MCA V3 for {cin}...")
+            page.goto("https://www.mca.gov.in/content/mca/global/en/login.html", wait_until="networkidle", timeout=60000)
+            
+            # Maintenance Check
+            if "Maintenance" in page.content() or "undergoing scheduled maintenance" in page.content():
+                raise Exception("MCA Portal is currently under maintenance. Please try again later.")
+
+            # Wait for username with more robust timeout
+            print("Waiting for login form...")
+            page.wait_for_selector("#username", timeout=30000)
+            page.fill("#username", username)
+            page.fill("#password", password)
+            
+            # Solving initial login captcha
+            captcha_code = solve_captcha(page, "#captcha-img")
+            page.fill("#captcha", captcha_code)
+            page.click("#login-btn")
+            
+            # Check for login errors or success
+            page.wait_for_timeout(5000)
+            
+            # Navigate to Master Data
+            print("Navigating to Company Master Data...")
+            page.goto("https://www.mca.gov.in/content/mca/global/en/mca/master-data/v3-company-master-data.html", wait_until="networkidle", timeout=60000)
+            
+            # Fill CIN
+            page.wait_for_selector("#companyID")
+            page.fill("#companyID", cin)
+            
+            # Solve Master Data Page Captcha
+            captcha_code = solve_captcha(page, "#captcha-img")
+            page.fill("#captcha", captcha_code)
+            page.click("#search-btn")
+            
+            # Wait for results
+            page.wait_for_selector(".master-data-table", timeout=20000)
+            
+            # Extract Table Data
+            rows = page.query_selector_all(".master-data-table tr")
+            if not rows:
+                raise Exception("No master data table found. Search may have failed or timed out.")
+
+            data = {}
+            for row in rows:
+                cols = row.query_selector_all("td")
+                if len(cols) == 2:
+                    key = cols[0].inner_text().strip()
+                    val = cols[1].inner_text().strip()
+                    data[key] = val
+            
+            browser.close()
+            return data, None
+            
+        except Exception as e:
+            error_msg = str(e)
+            print(f"Scraping failed: {error_msg}")
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            screenshot_path = os.path.join(ERROR_DIR, f"error_{cin}_{timestamp}.png")
+            try:
+                page.screenshot(path=screenshot_path, full_page=True)
+                print(f"Error screenshot saved to {screenshot_path}")
+            except:
+                print("Failed to capture error screenshot.")
+                screenshot_path = None
+            browser.close()
+            return None, (error_msg, screenshot_path)
+
 def main():
     # Load parameters from environment or payload
-    # In a real GitHub Actions scenario, these would be passed via environment variables
-    config = json.loads(os.environ.get("MCA_PAYLOAD", "{}"))
+    payload_str = os.environ.get("MCA_PAYLOAD", "{}")
+    try:
+        config = json.loads(payload_str)
+    except json.JSONDecodeError:
+        config = {}
+
     cins = config.get("cins", [])
     user_email = config.get("email", "")
     force_refresh = config.get("force_refresh", False)
@@ -162,13 +270,6 @@ def main():
 
     for cin in cins:
         try:
-            # Check cache
-            # For simplicity, we use the CIN as a cache key if Company Name is not yet known
-            # But the user asked for [Company_Name].html
-            # We'll first check if any file starts with the Company Name or if we have a mapping
-            
-            # This is a simplified cache check - normally you'd want a more robust lookup
-            search_prefix = cin # Fallback
             cached_file = None
             if not force_refresh:
                 for f in os.listdir(ARCHIVE_DIR):
@@ -178,26 +279,27 @@ def main():
             
             if cached_file:
                 print(f"Fetching {cin} from cache...")
-                # In GitHub Pages, the URL would be https://[username].github.io/[repo]/master_data_archive/[filename]
                 report_url = f"https://tbhavar.github.io/Masterdata_V3_MCA/{ARCHIVE_DIR}/{cached_file}"
                 send_email(user_email, cin, report_url)
                 continue
 
             # Scrape live data
-            data = scrape_mca_master_data(cin, username, password)
-            company_name = data.get("Company Name", cin)
+            data, error_info = scrape_mca_master_data(cin, username, password)
             
-            # Generate report
+            if error_info:
+                error_msg, screenshot_path = error_info
+                send_email(user_email, cin, None, message_type="error", error_message=error_msg, attachment_path=screenshot_path)
+                continue
+
+            company_name = data.get("Company Name", cin)
             filename, filepath = generate_html_report(company_name, data)
             
-            # Commit handled by GitHub Actions workflow
-            
-            # Send email
+            # Email success report
             report_url = f"https://tbhavar.github.io/Masterdata_V3_MCA/{ARCHIVE_DIR}/{filename}"
             send_email(user_email, company_name, report_url)
             
         except Exception as e:
-            print(f"Error processing {cin}: {e}")
+            print(f"Critical error processing {cin}: {e}")
 
 if __name__ == "__main__":
     main()
