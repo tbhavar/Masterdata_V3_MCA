@@ -1,0 +1,40 @@
+name: MCA V3 Master Data Automation
+
+on:
+  repository_dispatch:
+    types: [mca_refresh]
+
+jobs:
+  scrape_mca:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install playwright ddddocr requests
+          playwright install chromium
+
+      - name: Run MCA Orchestrator
+        env:
+          MCA_USER: ${{ secrets.MCA_USER }}
+          MCA_PASS: ${{ secrets.MCA_PASS }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MCA_PAYLOAD: ${{ toJson(github.event.client_payload) }}
+        run: python mca_orchestrator.py
+
+      - name: Commit and Push Report
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add master_data_archive/
+          git commit -m "Auto-archive: New Master Data Report [actions skip]" || echo "No changes to commit"
+          git push
