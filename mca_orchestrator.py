@@ -6,6 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import playwright.sync_api as p
+from playwright_stealth import stealth_sync
 import ddddocr
 import requests
 from email.mime.base import MIMEBase
@@ -169,45 +170,66 @@ def send_email(to_email, company_name, report_url, message_type="success", error
 
 def scrape_mca_master_data(cin, username, password):
     ERROR_DIR = "error_logs"
+    AUTH_FILE = "auth_state.json"
     if not os.path.exists(ERROR_DIR):
         os.makedirs(ERROR_DIR)
 
     with p.sync_playwright() as playwright:
-        # Use a real user agent to avoid some bot detection
         browser = playwright.chromium.launch(headless=True)
-        context = browser.new_context(
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-            viewport={'width': 1280, 'height': 800}
-        )
+        
+        # Load session if it exists, otherwise create a new context
+        if os.path.exists(AUTH_FILE):
+            print("Using existing session (auth_state.json)...")
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                viewport={'width': 1280, 'height': 800},
+                storage_state=AUTH_FILE
+            )
+        else:
+            print("No session found. Will attempt a fresh login...")
+            context = browser.new_context(
+                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+                viewport={'width': 1280, 'height': 800}
+            )
+        
         page = context.new_page()
+        stealth_sync(page) # Apply stealth to mask automation
 
         try:
-            # Login
-            print(f"Logging into MCA V3 for {cin}...")
-            page.goto("https://www.mca.gov.in/content/mca/global/en/login.html", wait_until="networkidle", timeout=60000)
+            # First, check if we're already logged in by trying to visit Master Data
+            print("Attempting to access Company Master Data...")
+            page.goto("https://www.mca.gov.in/content/mca/global/en/mca/master-data/v3-company-master-data.html", wait_until="networkidle", timeout=60000)
             
             # Maintenance Check
             if "Maintenance" in page.content() or "undergoing scheduled maintenance" in page.content():
                 raise Exception("MCA Portal is currently under maintenance. Please try again later.")
 
-            # Wait for username with more robust timeout
-            print("Waiting for login form...")
-            page.wait_for_selector("#username", timeout=30000)
-            page.fill("#username", username)
-            page.fill("#password", password)
-            
-            # Solving initial login captcha
-            captcha_code = solve_captcha(page, "#captcha-img")
-            page.fill("#captcha", captcha_code)
-            page.click("#login-btn")
-            
-            # Check for login errors or success
-            page.wait_for_timeout(5000)
-            
-            # Navigate to Master Data
-            print("Navigating to Company Master Data...")
-            page.goto("https://www.mca.gov.in/content/mca/global/en/mca/master-data/v3-company-master-data.html", wait_until="networkidle", timeout=60000)
-            
+            # Check if redirected to login
+            if "fologin.html" in page.url or "login.html" in page.url:
+                print("Session expired or missing. Navigating to Login...")
+                page.goto("https://www.mca.gov.in/content/mca/global/en/foportal/fologin.html", wait_until="networkidle", timeout=60000)
+                
+                # Wait for login form
+                print("Waiting for login form...")
+                page.wait_for_selector("#username", timeout=30000)
+                page.fill("#username", username)
+                page.fill("#password", password)
+                
+                # Solving initial login captcha
+                captcha_code = solve_captcha(page, "#captcha-img")
+                page.fill("#captcha", captcha_code)
+                page.click("#login-btn")
+                
+                # Check for login success
+                page.wait_for_timeout(5000)
+                
+                # Save session for next time
+                context.storage_state(path=AUTH_FILE)
+                print("New session saved to auth_state.json")
+                
+                # Re-navigate to Master Data
+                page.goto("https://www.mca.gov.in/content/mca/global/en/mca/master-data/v3-company-master-data.html", wait_until="networkidle", timeout=60000)
+
             # Fill CIN
             page.wait_for_selector("#companyID")
             page.fill("#companyID", cin)
