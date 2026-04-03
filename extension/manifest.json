@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "MCA Master Data Scraper - by tbhavar.in",
+  "version": "1.0",
+  "description": "Automate MCA Master Data extraction and report generation directly from your browser.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "host_permissions": [
+    "https://www.mca.gov.in/*",
+    "http://localhost:5000/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.mca.gov.in/content/mca/global/en/mca/master-data/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["xlsx.full.min.js"],
+      "matches": ["https://www.mca.gov.in/*"]
+    }
+  ]
+}

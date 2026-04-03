@@ -6,7 +6,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import playwright.sync_api as p
-from playwright_stealth import stealth_sync
+from playwright_stealth import Stealth
 import ddddocr
 import requests
 from email.mime.base import MIMEBase
@@ -193,7 +193,7 @@ def scrape_mca_master_data(cin, username, password):
             )
         
         page = context.new_page()
-        stealth_sync(page) # Apply stealth to mask automation
+        Stealth().apply_stealth_sync(page) # Apply stealth to mask automation
 
         try:
             # First, check if we're already logged in by trying to visit Master Data

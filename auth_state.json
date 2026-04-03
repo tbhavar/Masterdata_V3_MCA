@@ -1,0 +1,75 @@
+{
+  "cookies": [
+    {
+      "name": "NID",
+      "value": "530=mVvKlTv3bs4W84CmyBILPsavSXHAlgoLw9-9NSM2ifQCdmhs_mhL4AU_ywNALr1FjJdsB39861PxSwq1x97lZ6cLJ1m_HdXNeRJf_IV9WScoB3AY58cm3rNAJ7t2uyNvpQdnoMOYCak28zLeAh4iRiZqcdedgjyZrCd6bS5zoeqnUHZiTkonF0FLENIjl19XcDNJdtmTWa7-bTFA",
+      "domain": ".google.com",
+      "path": "/",
+      "expires": 1791047658.30765,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "cookiesession1",
+      "value": "678B28690705527CE38AAF94CB777547",
+      "domain": "www.mca.gov.in",
+      "path": "/",
+      "expires": 1806772463.816017,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "deviceId",
+      "value": "e9ebpykp50p",
+      "domain": "www.mca.gov.in",
+      "path": "/",
+      "expires": 1775250988.504574,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__UUID-HASH",
+      "value": "957c901474e053a93bca64dc9640ae97",
+      "domain": "www.mca.gov.in",
+      "path": "/",
+      "expires": 1775250988.504467,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "session-token-md5",
+      "value": "qdLQ9TBl8n38/pSmwlh3XPMLiVnrizwYY4vecYH+gRgqn5lSYiXDKbKvaN/ohi5OwXTsmPldlTjY++Wap8vypfOkQYr97CnTZW2aF8qu8df9KVPtxRpFU+wUmFohdZjlfzT5giANbamjHH5KJrtoWj4k8XlSsvC41RQvBmkI1Ru+9bbaFwVrqrZaLtGvs+VN8qqoXWg0A/beWrJPzhbiPR7J/5E/Lluh8WD3nPEX3NXuHAMjKPuh9XoWUV0Y+srYO6l45ntG0KFF3gZf9suM2H4rt3MGjDL4zLnShhVTFKM2esZcDrrVuYYaWQ/yDYp+EY09GgxXBRXQ4q3BPQP3lyYhJ3qZUrpCT0ceT3+nDSgz2zuOqgdlyMq6D162pRetkIaDizEXIQgeOkKq7PO+SS26lpxbp9lbHUgKtg16QkpIxeDJBpunz9dWfw==",
+      "domain": "www.mca.gov.in",
+      "path": "/",
+      "expires": 1775250988.50452,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sessionID",
+      "value": "ae18321c-3747-4ca2-941f-c0b5c0abc864",
+      "domain": "www.mca.gov.in",
+      "path": "/",
+      "expires": 1775250988.504551,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_csrf",
+      "value": "1ce25d64-1789-4830-baf8-2cb7f9cf3e1a",
+      "domain": "www.mca.gov.in",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}

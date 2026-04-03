@@ -2,7 +2,7 @@ import time
 import json
 import os
 from playwright.sync_api import sync_playwright
-from playwright_stealth import stealth_sync
+from playwright_stealth import Stealth
 
 def record_session():
     AUTH_FILE = "auth_state.json"
@@ -18,7 +18,7 @@ def record_session():
         page = context.new_page()
         
         # Apply stealth to mask automation
-        stealth_sync(page)
+        Stealth().apply_stealth_sync(page)
         
         print(f"Navigating to {LOGIN_URL}...")
         page.goto(LOGIN_URL)
